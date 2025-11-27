@@ -17,11 +17,15 @@ export enum ArtStyle {
 export interface ShotSettings {
   aspectRatio: AspectRatio;
   artStyle: ArtStyle;
+  subjectReference?: string; // e.g., "Man in red jacket"
+  styleReference?: string;   // e.g., "Cyberpunk neon lights"
 }
 
 export interface ProjectSettings {
   defaultAspectRatio: AspectRatio;
   defaultArtStyle: ArtStyle;
+  defaultSubjectReference: string;
+  defaultStyleReference: string;
 }
 
 export interface Shot {

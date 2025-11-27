@@ -22,7 +22,9 @@ const App: React.FC = () => {
   // Project Global Settings
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>({
     defaultAspectRatio: AspectRatio.RATIO_239_1,
-    defaultArtStyle: ArtStyle.CINEMATIC_REALISM
+    defaultArtStyle: ArtStyle.CINEMATIC_REALISM,
+    defaultSubjectReference: "",
+    defaultStyleReference: ""
   });
 
   // Resizing Logic
@@ -77,13 +79,22 @@ const App: React.FC = () => {
   };
 
   const handleGenerateShot = async (shot: Shot) => {
+    // Determine effective settings (Local Override > Global Default)
     const effectiveAspectRatio = shot.overrideSettings?.aspectRatio || projectSettings.defaultAspectRatio;
     const effectiveArtStyle = shot.overrideSettings?.artStyle || projectSettings.defaultArtStyle;
+    const effectiveSubjectRef = shot.overrideSettings?.subjectReference ?? projectSettings.defaultSubjectReference;
+    const effectiveStyleRef = shot.overrideSettings?.styleReference ?? projectSettings.defaultStyleReference;
 
     setShots(prev => prev.map(s => s.id === shot.id ? { ...s, isGenerating: true } : s));
     
     try {
-      const imageUrl = await generateShotImage(shot.visualPrompt, effectiveArtStyle, effectiveAspectRatio);
+      const imageUrl = await generateShotImage(
+        shot.visualPrompt, 
+        effectiveArtStyle, 
+        effectiveAspectRatio,
+        effectiveSubjectRef,
+        effectiveStyleRef
+      );
       setShots(prev => prev.map(s => s.id === shot.id ? { ...s, imageUrl, isGenerating: false } : s));
     } catch (error) {
       console.error(error);

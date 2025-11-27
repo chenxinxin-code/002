@@ -142,11 +142,22 @@ const getApiAspectRatio = (ratio: AspectRatio): string => {
 export const generateShotImage = async (
   visualPrompt: string, 
   style: ArtStyle = ArtStyle.CINEMATIC_REALISM,
-  ratio: AspectRatio = AspectRatio.RATIO_239_1
+  ratio: AspectRatio = AspectRatio.RATIO_239_1,
+  subjectRef: string = "",
+  styleRef: string = ""
 ): Promise<string> => {
   try {
     const styleSuffix = getStylePrompt(style);
-    const fullPrompt = `Generate a high quality image. ${visualPrompt}, ${styleSuffix}.`;
+    
+    // Construct a rich prompt including references
+    let fullPrompt = `Generate a high quality image. ${visualPrompt}.`;
+    if (subjectRef.trim()) {
+      fullPrompt += ` SUBJECT/CHARACTER DETAILS: ${subjectRef}.`;
+    }
+    if (styleRef.trim()) {
+      fullPrompt += ` STYLE REFERENCE: ${styleRef}.`;
+    }
+    fullPrompt += ` ART STYLE: ${styleSuffix}.`;
     
     const apiRatio = getApiAspectRatio(ratio);
 

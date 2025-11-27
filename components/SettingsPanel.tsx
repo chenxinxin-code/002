@@ -37,7 +37,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     onUpdateProjectSettings({ ...projectSettings, [key]: value });
   };
 
-  const handleShotChange = (key: 'aspectRatio' | 'artStyle', value: any) => {
+  const handleShotChange = (key: keyof import('../types').ShotSettings, value: any) => {
     if (!selectedShot) return;
     const currentOverrides = selectedShot.overrideSettings || {};
     onUpdateShotSettings(selectedShot.id, { ...currentOverrides, [key]: value });
@@ -49,7 +49,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       // Initialize with current global values if enabling overrides
       onUpdateShotSettings(selectedShot.id, {
         aspectRatio: projectSettings.defaultAspectRatio,
-        artStyle: projectSettings.defaultArtStyle
+        artStyle: projectSettings.defaultArtStyle,
+        subjectReference: projectSettings.defaultSubjectReference,
+        styleReference: projectSettings.defaultStyleReference
       });
     } else {
       // Clear overrides to inherit global
@@ -58,6 +60,12 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
 
   const shotHasOverrides = !!selectedShot?.overrideSettings;
+
+  // Get current values based on mode
+  const currentAspectRatio = isGlobalMode ? projectSettings.defaultAspectRatio : (selectedShot?.overrideSettings?.aspectRatio || projectSettings.defaultAspectRatio);
+  const currentArtStyle = isGlobalMode ? projectSettings.defaultArtStyle : (selectedShot?.overrideSettings?.artStyle || projectSettings.defaultArtStyle);
+  const currentSubjectRef = isGlobalMode ? projectSettings.defaultSubjectReference : (selectedShot?.overrideSettings?.subjectReference ?? projectSettings.defaultSubjectReference);
+  const currentStyleRef = isGlobalMode ? projectSettings.defaultStyleReference : (selectedShot?.overrideSettings?.styleReference ?? projectSettings.defaultStyleReference);
 
   return (
     <div className="flex flex-col h-full bg-gray-900 border-l border-gray-700 w-full text-sm">
@@ -95,56 +103,89 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         )}
 
         {/* Inputs */}
-        <div className={`space-y-6 transition-opacity ${!isGlobalMode && !shotHasOverrides ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
+        <div className={`space-y-8 transition-opacity ${!isGlobalMode && !shotHasOverrides ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
           
-          {/* Aspect Ratio */}
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-              画面规格 (Resolution)
-            </label>
-            <select
-              value={isGlobalMode ? projectSettings.defaultAspectRatio : (selectedShot?.overrideSettings?.aspectRatio || projectSettings.defaultAspectRatio)}
-              onChange={(e) => isGlobalMode 
-                ? handleGlobalChange('defaultAspectRatio', e.target.value)
-                : handleShotChange('aspectRatio', e.target.value)
-              }
-              className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-blue-500"
-            >
-              {ASPECT_RATIOS.map(r => (
-                <option key={r.value} value={r.value}>{r.label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              修改画幅将影响画面构图。宽画幅适合电影感，竖屏适合短视频。
-            </p>
+          {/* Section 1: Visual Specs */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700 pb-2">
+              画面规格 & 引擎
+            </h3>
+            
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 block">画面比例</label>
+              <select
+                value={currentAspectRatio}
+                onChange={(e) => isGlobalMode 
+                  ? handleGlobalChange('defaultAspectRatio', e.target.value)
+                  : handleShotChange('aspectRatio', e.target.value)
+                }
+                className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-blue-500"
+              >
+                {ASPECT_RATIOS.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 block">渲染风格</label>
+              <select
+                value={currentArtStyle}
+                onChange={(e) => isGlobalMode
+                  ? handleGlobalChange('defaultArtStyle', e.target.value)
+                  : handleShotChange('artStyle', e.target.value)
+                }
+                className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-blue-500"
+              >
+                {ART_STYLES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Render Engine / Style */}
-          <div className="space-y-3">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-              渲染风格 (Style Model)
-            </label>
-            <select
-              value={isGlobalMode ? projectSettings.defaultArtStyle : (selectedShot?.overrideSettings?.artStyle || projectSettings.defaultArtStyle)}
-              onChange={(e) => isGlobalMode
-                ? handleGlobalChange('defaultArtStyle', e.target.value)
-                : handleShotChange('artStyle', e.target.value)
-              }
-              className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white focus:outline-none focus:border-blue-500"
-            >
-              {ART_STYLES.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-             <p className="text-xs text-gray-500 leading-relaxed">
-               决定 AI 生成图片的笔触和质感。
-            </p>
+          {/* Section 2: Reference & Consistency */}
+          <div className="space-y-4">
+             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700 pb-2 flex items-center justify-between">
+              参考与一致性
+              <span className="text-[10px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">Prompt 增强</span>
+            </h3>
+
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 block">
+                主体/角色参考 (Subject)
+              </label>
+              <textarea
+                value={currentSubjectRef}
+                onChange={(e) => isGlobalMode
+                  ? handleGlobalChange('defaultSubjectReference', e.target.value)
+                  : handleShotChange('subjectReference', e.target.value)
+                }
+                placeholder="例如：30岁男子，机械手臂，身穿棕色皮夹克，神情颓废..."
+                className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-xs h-20 focus:outline-none focus:border-blue-500 resize-none placeholder-gray-600"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs text-gray-500 block">
+                风格/环境参考 (Style/Env)
+              </label>
+              <textarea
+                value={currentStyleRef}
+                onChange={(e) => isGlobalMode
+                  ? handleGlobalChange('defaultStyleReference', e.target.value)
+                  : handleShotChange('styleReference', e.target.value)
+                }
+                placeholder="例如：赛博朋克，霓虹灯光，雨夜，高对比度，王家卫风格..."
+                className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-xs h-20 focus:outline-none focus:border-blue-500 resize-none placeholder-gray-600"
+              />
+            </div>
           </div>
 
           {/* Placeholders for future features */}
-          <div className="space-y-3 pt-4 border-t border-gray-800">
+          <div className="space-y-3 pt-4 border-t border-gray-800 opacity-50">
              <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block">
-               视频模型 (Video - Coming Soon)
+               视频模型 (Coming Soon)
              </label>
              <select disabled className="w-full bg-gray-800/50 border border-gray-800 rounded p-2 text-gray-500 cursor-not-allowed">
                <option>Stable Video Diffusion (Beta)</option>
