@@ -1,5 +1,5 @@
 {
-  "name": "aim-ai编导",
+  "name": "aim-超级编导",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,7 +11,8 @@
   "dependencies": {
     "@google/genai": "^1.30.0",
     "react-dom": "^19.2.0",
-    "react": "^19.2.0"
+    "react": "^19.2.0",
+    "jszip": "3.10.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

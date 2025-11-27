@@ -1,31 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 interface ScriptPanelProps {
-  onAnalyze: (script: string) => void;
+  script: string;
+  onScriptChange: (newScript: string) => void;
+  onAnalyze: () => void;
   isAnalyzing: boolean;
 }
 
-const DEFAULT_SCRIPT = `内景 霓虹面馆 - 夜
-
-窗外雨水冲刷着霓虹灯的倒影。凯（30多岁，颓废，机械手臂）佝偻着背，对着一碗热气腾腾的面条。
-
-他看了一眼手表。全息投影信息闪烁着：“目标即将到达”。
-
-门滑开了。一个模糊的人影走了进来，全身湿透。
-
-凯
-(头也不抬)
-你迟到了。`;
-
-const ScriptPanel: React.FC<ScriptPanelProps> = ({ onAnalyze, isAnalyzing }) => {
-  const [script, setScript] = useState(DEFAULT_SCRIPT);
-
+const ScriptPanel: React.FC<ScriptPanelProps> = ({ script, onScriptChange, onAnalyze, isAnalyzing }) => {
   return (
-    <div className="flex flex-col h-full bg-gray-900 border-r border-gray-700">
-      <div className="p-4 border-b border-gray-700 bg-gray-850">
+    <div className="flex flex-col h-full bg-gray-900 border-r border-gray-700 w-full">
+      <div className="p-4 border-b border-gray-700 bg-gray-850 select-none">
         <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-          剧本输入
+          <div className="drag-handle cursor-grab text-gray-600 hover:text-gray-300 p-1 rounded hover:bg-gray-800 transition-colors" title="拖拽移动模块">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z"></path></svg>
+          </div>
+          <span className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            剧本输入
+          </span>
         </h2>
       </div>
       
@@ -33,7 +26,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({ onAnalyze, isAnalyzing }) => 
         <textarea
           className="w-full h-full p-6 bg-gray-900 text-gray-300 font-mono text-sm resize-none focus:outline-none focus:ring-1 focus:ring-blue-500/50"
           value={script}
-          onChange={(e) => setScript(e.target.value)}
+          onChange={(e) => onScriptChange(e.target.value)}
           placeholder="在此粘贴剧本..."
           spellCheck={false}
         />
@@ -41,7 +34,7 @@ const ScriptPanel: React.FC<ScriptPanelProps> = ({ onAnalyze, isAnalyzing }) => 
 
       <div className="p-4 border-t border-gray-700 bg-gray-850">
         <button
-          onClick={() => onAnalyze(script)}
+          onClick={onAnalyze}
           disabled={isAnalyzing}
           className={`w-full py-3 px-4 rounded-lg flex items-center justify-center gap-2 font-medium transition-all ${
             isAnalyzing 

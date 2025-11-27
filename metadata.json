@@ -1,5 +1,5 @@
 {
-  "name": "Aim-AI编导",
+  "name": "Aim-超级编导",
   "description": "AI-powered pre-visualization platform for filmmakers. Turn scripts into dynamic storyboards and edits using Gemini 2.5.",
   "requestFramePermissions": [
     "microphone"
