@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { ProjectSettings, Shot, AspectRatio, ArtStyle, ModelType, CharacterReference } from '../types';
+import { ProjectSettings, Shot, AspectRatio, ArtStyle, ModelType, CharacterReference, StyleReference } from '../types';
 import { analyzeImage } from '../services/geminiService';
 
 interface SettingsPanelProps {
@@ -33,13 +33,11 @@ const ART_STYLES = [
 ];
 
 const MODEL_TYPES = [
-  { value: ModelType.GEMINI_NANO, label: 'Gemini Nano (2.5 Flash Image) - 极速/默认' },
-  { value: ModelType.GEMINI_NANO_PRO, label: 'Gemini Nano Pro (3 Pro Image) - 旗舰画质' },
-  { value: ModelType.IMAGEN_4, label: 'Imagen 4 - 专业绘图引擎' },
-  { value: ModelType.FLUX_REALISM, label: 'Flux 1.0 (风格模拟)' },
-  { value: ModelType.MIDJOURNEY_V6, label: 'Midjourney v6 (风格模拟)' },
-  { value: ModelType.NIJI_V6, label: 'Niji Journey v6 (风格模拟)' },
-  { value: ModelType.SDXL_TURBO, label: 'SDXL (风格模拟)' },
+  { value: ModelType.GEMINI_3_PRO, label: 'gemini-3-pro-image-preview' },
+  { value: ModelType.GEMINI_2_5_FLASH, label: 'gemini-2.5-flash-image' },
+  { value: ModelType.IMAGEN_4_STD, label: 'imagen-4.0-generate-001' },
+  { value: ModelType.IMAGEN_4_ULTRA, label: 'imagen-4.0-ultra-generate-001' },
+  { value: ModelType.IMAGEN_4_FAST, label: 'imagen-4.0-fast-generate-001' },
 ];
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({
@@ -145,7 +143,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     handleGlobalChange('characterLibrary', updatedLibrary);
   };
 
-  // --- Style Logic (Image Upload) ---
+  // --- Style Logic (Image Upload with Tag) ---
 
   const handleStyleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -162,10 +160,21 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
-        const newRefs = [...(currentRefs || []), base64String];
         
-        if (isGlobalMode) handleGlobalChange('defaultStyleReference', newRefs);
-        else handleShotChange('styleReference', newRefs);
+        // Prompt user for a tag
+        const tag = prompt("请为这张参考图输入标签 (例如: '赛博夜景', '复古色调'):", "风格参考");
+        
+        if (tag) {
+            const newRef: StyleReference = {
+                id: Date.now().toString(),
+                tag: tag,
+                imageUrl: base64String
+            };
+            const newRefs = [...(currentRefs || []), newRef];
+            
+            if (isGlobalMode) handleGlobalChange('defaultStyleReference', newRefs);
+            else handleShotChange('styleReference', newRefs);
+        }
         
         if (e.target) e.target.value = ''; // Reset input
       };
@@ -175,11 +184,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
     }
   };
 
-  const removeStyleRef = (index: number) => {
+  const removeStyleRef = (id: string) => {
     const currentRefs = isGlobalMode ? projectSettings.defaultStyleReference : (selectedShot?.overrideSettings?.styleReference ?? projectSettings.defaultStyleReference);
     if (!currentRefs) return;
     
-    const newRefs = currentRefs.filter((_, i) => i !== index);
+    const newRefs = currentRefs.filter((ref) => ref.id !== id);
     if (isGlobalMode) handleGlobalChange('defaultStyleReference', newRefs);
     else handleShotChange('styleReference', newRefs);
   };
@@ -289,29 +298,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </div>
           </div>
 
-          {/* Prompt Editor - Only visible in Shot Mode */}
-          {!isGlobalMode && selectedShot && (
-            <div className="space-y-4">
-               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700 pb-2 flex items-center justify-between">
-                提示词工程 (Prompt)
-              </h3>
-              <div className="space-y-2">
-                <label className="text-xs text-gray-500 block">
-                  AI 生成提示词 (Visual Prompt)
-                </label>
-                <textarea
-                  value={selectedShot.visualPrompt}
-                  onChange={(e) => onUpdateShotData(selectedShot.id, { visualPrompt: e.target.value })}
-                  className="w-full bg-gray-800 border border-gray-700 rounded p-2 text-white text-xs h-32 focus:outline-none focus:border-blue-500 resize-none placeholder-gray-600 font-mono leading-relaxed"
-                />
-                <p className="text-[10px] text-gray-500">
-                  修改此英文提示词将直接改变生图结果。
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Section 2: Character Library (Replaces simple Subject Reference) */}
+          {/* Section 2: Character Library */}
           <div className={`space-y-4 rounded-lg p-3 border-2 ${isGlobalMode ? 'border-blue-500/50 bg-blue-900/10' : 'border-gray-700'}`}>
             <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest border-b border-gray-600/50 pb-2 flex items-center justify-between">
               角色库 (Character Consistency)
@@ -397,7 +384,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </p>
           </div>
 
-          {/* Section 3: Style Reference (Images) */}
+          {/* Section 3: Style Reference (Images with Tags) */}
           <div className={`space-y-4 rounded-lg p-3 border-2 ${isGlobalMode ? 'border-blue-500/50 bg-blue-900/10' : 'border-gray-700'}`}>
              <h3 className="text-xs font-bold text-gray-300 uppercase tracking-widest border-b border-gray-600/50 pb-2 flex items-center justify-between">
               风格/环境参考 (Style)
@@ -405,15 +392,19 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </h3>
             
             <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                 {currentStyleRefs?.map((refImg, idx) => (
-                   <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-gray-700 group">
-                      <img src={refImg} className="w-full h-full object-cover" />
+              <div className="grid grid-cols-1 gap-2">
+                 {currentStyleRefs?.map((ref) => (
+                   <div key={ref.id} className="flex items-center gap-3 bg-gray-800 p-2 rounded border border-gray-700 group hover:border-blue-500 transition-colors">
+                      <img src={ref.imageUrl} className="w-10 h-10 object-cover rounded bg-black shrink-0" />
+                      <div className="flex-1 overflow-hidden min-w-0">
+                         <div className="text-[10px] text-gray-400 uppercase tracking-wider">Style Tag</div>
+                         <div className="font-bold text-xs text-green-400 truncate">{ref.tag}</div>
+                      </div>
                       <button 
-                        onClick={() => removeStyleRef(idx)}
-                        className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-400 transition-opacity"
+                        onClick={() => removeStyleRef(ref.id)}
+                        className="text-gray-600 hover:text-red-400 p-1"
                       >
-                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                    </div>
                  ))}
@@ -421,10 +412,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                  {(!currentStyleRefs || currentStyleRefs.length < 3) && (
                    <button 
                     onClick={() => styleFileRef.current?.click()}
-                    className="aspect-square rounded-lg border-2 border-dashed border-gray-700 hover:border-blue-500/50 hover:bg-gray-800 flex flex-col items-center justify-center gap-1 text-gray-500 transition-all"
+                    className="w-full border-2 border-dashed border-gray-700 hover:border-green-500/50 bg-gray-800/30 hover:bg-gray-800 text-gray-400 hover:text-green-400 py-3 rounded-lg flex flex-col items-center justify-center gap-1 transition-all"
                    >
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                      <span className="text-[9px]">上传参考</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      <span className="text-[10px]">上传风格参考图 + 打标签</span>
                    </button>
                  )}
               </div>
@@ -436,7 +427,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 onChange={handleStyleUpload} 
               />
               <p className="text-[10px] text-gray-500 leading-relaxed px-1">
-                 * 上传 1-3 张图片作为画风或光影参考，AI 将直接参考这些图片生成画面。
+                 * 上传 1-3 张图片并打上标签（如“赛博朋克”），AI 将结合该图片与标签生成画面。
               </p>
             </div>
           </div>

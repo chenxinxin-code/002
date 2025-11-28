@@ -21,21 +21,18 @@ export enum ArtStyle {
 }
 
 export enum ModelType {
-  GEMINI_NANO = "gemini-nano",           // Maps to gemini-2.5-flash-image
-  GEMINI_NANO_PRO = "gemini-nano-pro",   // Maps to gemini-3-pro-image-preview
-  IMAGEN_4 = "imagen-4",                 // Maps to imagen-4.0-generate-001
-  FLUX_REALISM = "flux-realism",         // Simulation via prompt
-  MIDJOURNEY_V6 = "midjourney-v6",       // Simulation via prompt
-  NIJI_V6 = "niji-v6",                   // Simulation via prompt
-  SDXL_TURBO = "sdxl-turbo"              // Simulation via prompt
-}
-
-export interface ShotSettings {
-  aspectRatio: AspectRatio;
-  artStyle: ArtStyle;
-  modelType: ModelType;
-  subjectReference?: string; 
-  styleReference?: string[];   // Changed to array of base64 strings
+  // STRICTLY AS REQUESTED
+  GEMINI_3_PRO = "gemini-3-pro-image-preview",
+  GEMINI_2_5_FLASH = "gemini-2.5-flash-image",
+  IMAGEN_4_STD = "imagen-4.0-generate-001",
+  IMAGEN_4_ULTRA = "imagen-4.0-ultra-generate-001",
+  IMAGEN_4_FAST = "imagen-4.0-fast-generate-001",
+  
+  // Legacy/Simulation styles
+  FLUX_REALISM = "flux-realism",         
+  MIDJOURNEY_V6 = "midjourney-v6",       
+  NIJI_V6 = "niji-v6",                   
+  SDXL_TURBO = "sdxl-turbo"              
 }
 
 export interface CharacterReference {
@@ -45,11 +42,19 @@ export interface CharacterReference {
   imageUrl: string;  // The base64 reference image
 }
 
-export interface Character {
+// New Interface for Style References with Tags
+export interface StyleReference {
   id: string;
-  name: string;
-  description: string;
-  referenceImage?: string;
+  tag: string;       // User defined tag for the style (e.g., "Dream Sequence")
+  imageUrl: string;  // Base64 image
+}
+
+export interface ShotSettings {
+  aspectRatio: AspectRatio;
+  artStyle: ArtStyle;
+  modelType: ModelType;
+  subjectReference?: string; 
+  styleReference?: StyleReference[];   // Changed to array of objects
 }
 
 export interface ProjectSettings {
@@ -57,8 +62,15 @@ export interface ProjectSettings {
   defaultArtStyle: ArtStyle;
   defaultModelType: ModelType;
   defaultSubjectReference: string;
-  defaultStyleReference: string[]; // Changed to array of base64 strings
+  defaultStyleReference: StyleReference[]; // Changed to array of objects
   characterLibrary: CharacterReference[];
+}
+
+export interface Character {
+  id: string;
+  name: string;
+  description: string;
+  referenceImage?: string;
 }
 
 export interface Shot {

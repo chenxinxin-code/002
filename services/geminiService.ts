@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { ScriptAnalysisResult, AspectRatio, ArtStyle, ModelType } from "../types";
+import { ScriptAnalysisResult, AspectRatio, ArtStyle, ModelType, StyleReference } from "../types";
 
 // Helper to get API key safely
 const getApiKey = (): string => {
@@ -69,8 +69,9 @@ export const analyzeScript = async (scriptText: string): Promise<ScriptAnalysisR
   };
 
   try {
+    // USING GEMINI 3 PRO PREVIEW FOR LLM AS REQUESTED
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-pro-preview",
       contents: [
         { role: "user", parts: [{ text: prompt + "\n\nSCRIPT:\n" + truncatedScript }] }
       ],
@@ -140,7 +141,7 @@ export const generateShotImage = async (
   aspectRatio: AspectRatio,
   modelType: ModelType,
   subjectRef?: string,
-  styleRef?: string[] // Changed to array of base64 strings
+  styleRef?: StyleReference[] // Changed to array of objects
 ): Promise<string> => {
   
   const styleModifiers = getStylePrompt(style);
@@ -152,67 +153,117 @@ export const generateShotImage = async (
      textPrompt += `SUBJECT DESCRIPTION: ${subjectRef}. `;
   }
 
+  // Inject Style Tags
+  if (styleRef && styleRef.length > 0) {
+      const styleTags = styleRef.map(s => s.tag).join(", ");
+      textPrompt += `STYLE CONTEXT: ${styleTags}. `;
+  }
+
   // Add the main visual action (The user edited Chinese description)
   textPrompt += `SCENE DESCRIPTION: ${basePrompt}. `;
 
   // Add technical style modifiers
   textPrompt += `\nVISUAL STYLE: ${styleModifiers}. `;
-  textPrompt += `\nAspect Ratio: ${aspectRatio}.`;
+  
+  console.log("Generating with Prompt:", textPrompt, "Model:", modelType);
 
-  console.log("Generating with Text Prompt:", textPrompt);
+  // Check if we are using an Imagen model
+  // ModelType strings are now strict API names like 'imagen-4.0-generate-001'
+  const isImagen = modelType.startsWith('imagen-');
 
-  // Determine model name
-  const modelName = modelType === ModelType.GEMINI_NANO_PRO 
-    ? 'gemini-3-pro-image-preview'
-    : 'gemini-2.5-flash-image'; 
+  if (isImagen) {
+      // --- IMAGEN PATH ---
+      // Imagen 4 only supports specific aspect ratios. Map strictly.
+      // Assuming aspectRatio is like "16:9"
+      let validRatio: any = aspectRatio;
+      if (aspectRatio === AspectRatio.RATIO_239_1) {
+          console.warn("Imagen does not support 2.39:1, falling back to 16:9");
+          validRatio = "16:9";
+      }
 
-  // Construct Content Parts
-  const parts: any[] = [{ text: textPrompt }];
-
-  // Add Style Reference Images (Multimodal)
-  if (styleRef && styleRef.length > 0) {
-    // Add instruction for the images
-    parts.push({ text: "Use the following images as Style Reference (lighting, color, atmosphere):" });
-    
-    styleRef.forEach(base64Str => {
-      // Strip prefix if present
-      const cleanBase64 = base64Str.replace(/^data:image\/\w+;base64,/, "");
-      parts.push({
-        inlineData: {
-          mimeType: "image/png", // Assuming PNG/JPEG, API usually handles detection or generic image type
-          data: cleanBase64
-        }
-      });
-    });
-  }
-
-  // Use Gemini for everything now to support multimodal
-  try {
-    const validRatio = aspectRatio as any;
-    
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        { role: "user", parts: parts }
-      ],
-      config: {
-          imageConfig: {
-            aspectRatio: validRatio
+      try {
+        const response = await ai.models.generateImages({
+          model: modelType, // Use specific imagen string
+          prompt: textPrompt,
+          config: {
+            numberOfImages: 1,
+            aspectRatio: validRatio, 
+            outputMimeType: 'image/jpeg',
           }
-      }
-    });
-
-    if (response.candidates?.[0]?.content?.parts) {
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData && part.inlineData.data) {
-          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        });
+        
+        const base64String = response.generatedImages?.[0]?.image?.imageBytes;
+        if (base64String) {
+          return `data:image/jpeg;base64,${base64String}`;
         }
+        throw new Error("Imagen generation failed: No image data");
+      } catch (e: any) {
+        console.error("Imagen Error", e);
+        if (e.message?.includes("400")) {
+             throw new Error(`Imagen Error: ${e.message}. Check aspect ratio.`);
+        }
+        throw e;
       }
-    }
-    throw new Error("Generation failed: No image returned");
-  } catch (e) {
-    console.error("Gemini Generation Error", e);
-    throw e;
+
+  } else {
+      // --- GEMINI PATH ---
+      // Gemini 2.5 Flash Image or Gemini 3 Pro Image Preview
+      
+      const parts: any[] = [{ text: textPrompt }];
+
+      // Add Style Reference Images (Multimodal) - Only supported on Gemini
+      if (styleRef && styleRef.length > 0) {
+        parts.push({ text: "Use the following images as Style Reference (lighting, color, atmosphere):" });
+        
+        styleRef.forEach(ref => {
+          const cleanBase64 = ref.imageUrl.replace(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/, "");
+          parts.push({
+            inlineData: {
+              mimeType: "image/png", 
+              data: cleanBase64
+            }
+          });
+        });
+      }
+
+      try {
+        const validRatio = aspectRatio as any;
+        
+        const response = await ai.models.generateContent({
+          model: modelType, // Use specific gemini string directly
+          contents: [
+            { role: "user", parts: parts }
+          ],
+          config: {
+              imageConfig: {
+                aspectRatio: validRatio
+              }
+          }
+        });
+
+        // Check for candidates
+        if (!response.candidates || response.candidates.length === 0) {
+            throw new Error("Generation failed: No candidates returned.");
+        }
+
+        const candidate = response.candidates[0];
+        if (candidate.content?.parts) {
+          for (const part of candidate.content.parts) {
+            if (part.inlineData && part.inlineData.data) {
+              return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            }
+          }
+        }
+        
+        throw new Error("Generation failed: No image returned in response parts.");
+
+      } catch (e: any) {
+        console.error("Gemini Generation Error Details:", e);
+        if (e.message?.includes("400")) {
+            throw new Error("Bad Request: Please check inputs or model compatibility.");
+        }
+        throw e;
+      }
   }
 };
 
@@ -256,7 +307,7 @@ export const analyzeImage = async (
    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
    const prompt = type === 'subject' 
      ? "Analyze this image and provide a concise physical description of the main character (age, hair, clothing, distinct features). Keep it under 50 words."
-     : "Analyze the art style."; // Not used for style anymore, but kept for signature compatibility
+     : "Analyze the art style."; 
    try {
      const response = await ai.models.generateContent({
        model: "gemini-2.5-flash",

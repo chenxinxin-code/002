@@ -22,6 +22,7 @@ const DEFAULT_SCRIPT = `内景 霓虹面馆 - 夜
 (头也不抬)
 你迟到了。`;
 
+// Added 'episode' back to PanelId type
 type PanelId = 'episode' | 'script' | 'main' | 'settings';
 
 const App: React.FC = () => {
@@ -66,9 +67,9 @@ const App: React.FC = () => {
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>({
     defaultAspectRatio: AspectRatio.RATIO_239_1,
     defaultArtStyle: ArtStyle.CINEMATIC_REALISM,
-    defaultModelType: ModelType.FLUX_REALISM,
+    defaultModelType: ModelType.GEMINI_2_5_FLASH, 
     defaultSubjectReference: "",
-    defaultStyleReference: [], // Changed to empty array
+    defaultStyleReference: [], // Empty array of style refs
     characterLibrary: [] 
   });
 
@@ -640,7 +641,27 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-black text-white overflow-hidden font-sans">
+    <div className="flex flex-col h-screen bg-black text-white overflow-hidden font-sans">
+      {/* Navbar */}
+      {!isZenMode && (
+        <header className="h-14 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 shrink-0 z-10">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" /></svg>
+            </div>
+            <span className="font-bold text-lg tracking-tight flex items-center gap-1">
+              Aim-<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">超级编导</span>
+            </span>
+          </div>
+          <div className="flex gap-4 items-center">
+            <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              Gemini 2.5 在线
+            </div>
+          </div>
+        </header>
+      )}
+
       {/* Global Modals */}
       {viewingShot && viewingShot.imageUrl && (
         <Lightbox 
@@ -665,7 +686,6 @@ const App: React.FC = () => {
            const width = panelWidths[panelId];
            
            // In Zen Mode, only show main panel. 
-           // Special Case: If we are in Zen mode, we might want "main" to take full width and hide others.
            if (isZenMode && panelId !== 'main') return null;
            
            if (isZenMode && panelId === 'main') {
